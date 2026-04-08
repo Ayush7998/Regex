@@ -247,13 +247,13 @@ class Visualizer {
 
                 const isEdgeActive = src.active && tgt.active;
 
-                this.ctx.fillStyle = isEdgeActive ? '#fca5a5' : '#a1a1aa'; // Rose-300 / muted
-                this.ctx.strokeStyle = isEdgeActive ? '#f43f5e' : '#52525b'; // Rose-500 / dark border
+                this.ctx.fillStyle = isEdgeActive ? '#99f6e4' : '#a1a1aa'; // Rose-300 / muted
+                this.ctx.strokeStyle = isEdgeActive ? '#2dd4bf' : '#52525b'; // Rose-500 / dark border
                 this.ctx.lineWidth = isEdgeActive ? 3 : 2;
 
                 if (src.id === tgt.id) {
                     const pos = this.drawSelfArrow(src.x, src.y, nodeRadius);
-                    this.ctx.fillStyle = isEdgeActive ? '#ffe4e6' : '#a1a1aa';
+                    this.ctx.fillStyle = isEdgeActive ? '#ccfbf1' : '#a1a1aa';
                     this.ctx.fillText(labels, pos.textX, pos.textY);
                 } else {
                     const pos = this.drawArrow(src.x, src.y, tgt.x, tgt.y, nodeRadius);
@@ -265,7 +265,7 @@ class Visualizer {
                     const offsetX = Math.cos(angle - Math.PI/2) * 15;
                     const offsetY = Math.sin(angle - Math.PI/2) * 15;
                     
-                    this.ctx.fillStyle = isEdgeActive ? '#ffe4e6' : '#a1a1aa';
+                    this.ctx.fillStyle = isEdgeActive ? '#ccfbf1' : '#a1a1aa';
                     this.ctx.fillText(labels, midX + offsetX, midY + offsetY);
                 }
             }
@@ -277,17 +277,17 @@ class Visualizer {
             this.ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
             
             if (node.active) {
-                this.ctx.fillStyle = 'rgba(245, 158, 11, 0.25)'; // Amber fill
+                this.ctx.fillStyle = 'rgba(45, 212, 191, 0.25)'; // Amber fill
                 this.ctx.fill();
                 this.ctx.lineWidth = 3;
-                this.ctx.strokeStyle = '#fbbf24'; // Amber light border
+                this.ctx.strokeStyle = '#5eead4'; // Amber light border
                 this.ctx.shadowBlur = 15;
-                this.ctx.shadowColor = '#f59e0b'; // Amber glow
+                this.ctx.shadowColor = '#2dd4bf'; // Amber glow
             } else {
-                this.ctx.fillStyle = '#2d0615'; // Dark rose tint node
+                this.ctx.fillStyle = '#18181A'; // Dark rose tint node
                 this.ctx.fill();
                 this.ctx.lineWidth = 2;
-                this.ctx.strokeStyle = '#881337'; // Rose darker border
+                this.ctx.strokeStyle = '#2dd4bf'; // Rose darker border
                 this.ctx.shadowBlur = 0;
             }
             
@@ -296,7 +296,7 @@ class Visualizer {
             if (node.isEnd) {
                 this.ctx.beginPath();
                 this.ctx.arc(node.x, node.y, nodeRadius - 5, 0, Math.PI * 2);
-                this.ctx.strokeStyle = node.active ? '#fde047' : '#f43f5e'; // Yellow inner ring if active, Rose if not
+                this.ctx.strokeStyle = node.active ? '#fde047' : '#2dd4bf'; // Yellow inner ring if active, Rose if not
                 this.ctx.stroke();
             }
 
