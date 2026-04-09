@@ -322,6 +322,7 @@ canvas:active {
     color: #f0fdfa;
     font-weight: 500;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    cursor: pointer;
 }
 
 .string-list li.empty-state {

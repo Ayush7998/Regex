@@ -151,6 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 strings.forEach(str => {
                     const li = document.createElement('li');
                     li.textContent = str;
+                    li.title = "Click to simulate this string on the DFA";
+                    li.addEventListener('click', () => {
+                        simulateStringOnDfa(str, regexStr);
+                    });
                     stringList.appendChild(li);
                 });
             }
@@ -158,6 +162,71 @@ document.addEventListener('DOMContentLoaded', () => {
             alert("Error generating strings: " + e.message);
         }
     });
+
+    function simulateStringOnDfa(str, regexStr) {
+        if (playbackInterval) togglePlayback();
+        
+        try {
+            const nfaData = regexEngine.compile(regexStr, false); // Compile not silently
+            if (!nfaData || !nfaData.dfaSteps || nfaData.dfaSteps.length === 0) {
+                throw new Error("Could not retrieve DFA data for simulation.");
+            }
+            
+            const finalDfaStep = nfaData.dfaSteps[nfaData.dfaSteps.length - 1];
+            const simSteps = [];
+            
+            const actualStr = (str === "ε (Empty String)") ? "" : str;
+            let currentStateId = 0; // The DFA built from our compiler guarantees start state is 0
+            
+            simSteps.push({
+                description: `Start simulating string "${actualStr}". Initial state ${currentStateId}.`,
+                states: finalDfaStep.states,
+                activeStates: [currentStateId]
+            });
+            
+            for (let i = 0; i < actualStr.length; i++) {
+                const char = actualStr[i];
+                const stateObj = finalDfaStep.states[currentStateId];
+                
+                if (stateObj && stateObj.transitions[char] && stateObj.transitions[char].length > 0) {
+                    currentStateId = stateObj.transitions[char][0];
+                } else {
+                    currentStateId = -1;
+                    break;
+                }
+                
+                simSteps.push({
+                    description: `Consumed '${char}', moved to state ${currentStateId}.`,
+                    states: finalDfaStep.states,
+                    activeStates: [currentStateId]
+                });
+            }
+            
+            if (currentStateId !== -1) {
+                const isAccepted = finalDfaStep.states[currentStateId].isEnd;
+                simSteps.push({
+                    description: `Finished simulating "${actualStr}". String is ${isAccepted ? 'ACCEPTED' : 'REJECTED'}.`,
+                    states: finalDfaStep.states,
+                    activeStates: [currentStateId]
+                });
+            } else {
+                simSteps.push({
+                    description: `DFA crashed while traversing. String is REJECTED.`,
+                    states: finalDfaStep.states,
+                    activeStates: []
+                });
+            }
+            
+            currentSteps = simSteps;
+            renderStep(0);
+            togglePlayback();
+            
+            document.querySelector('.visualization-module').scrollIntoView({ behavior: 'smooth' });
+        } catch (e) {
+            alert("Error simulating string: " + e.message);
+            console.error(e);
+        }
+    }
 
     verifyEquivalenceBtn.addEventListener('click', () => {
         const r1 = regexInput.value.trim();
