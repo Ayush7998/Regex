@@ -8,13 +8,27 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="app-container">
-        <header>
-            <h1>Regex Visualizer</h1>
-            <p>Write, visualize, and generate strings from Regular Expressions.</p>
-        </header>
+    <!-- Global Navigation -->
+    <nav class="top-navbar">
+        <div class="nav-container">
+            <div class="logo">Regex Visualizer</div>
+            <div class="nav-links">
+                <button class="nav-btn active" data-target="home-page">Home</button>
+                <button class="nav-btn" data-target="string-gen-page">String Generation</button>
+                <button class="nav-btn" data-target="equivalence-page">Equivalence</button>
+                <button class="nav-btn" data-target="know-more-page">Know More</button>
+            </div>
+        </div>
+    </nav>
 
+    <div class="app-container">
         <main>
+            <!-- Page: Home -->
+            <div id="home-page" class="page-pane active">
+                <header class="hero-header">
+                    <h1>Regex Visualizer</h1>
+                    <p>Write, visualize, and generate strings from Regular Expressions.</p>
+                </header>
             <!-- Module 1: Input and Pallete -->
             <section class="module regex-input-module">
                 <h2>Regular Expression Input</h2>
@@ -22,6 +36,7 @@
                     <input type="text" id="regex-input" placeholder="Enter regular expression (e.g. (a|b)*abb)">
                     <button id="visualize-btn" class="primary-btn">Visualize Construction</button>
                 </div>
+                <div id="home-error" style="color: #fda4af; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.5rem 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; font-size: 0.95rem;"></div>
                 <div class="palette">
                     <h3>Quick Palette</h3>
                     <div class="palette-buttons">
@@ -53,44 +68,94 @@
                     <canvas id="nfa-canvas" width="800" height="400"></canvas>
                     <div id="step-description" class="step-info">Enter a regex to start.</div>
                 </div>
-            </section>
+                </section>
+            </div>
 
-            <!-- Module 3: String Generation -->
-            <section class="module string-generation-module">
-                <h2>Generated Strings</h2>
-                <div class="generation-controls input-group" style="align-items: center;">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
-                        Max length: <input type="number" id="max-length" value="5" min="1" max="10" style="min-width: 80px; flex: none;">
-                    </label>
-                    <button id="generate-btn" class="primary-btn">Generate Strings</button>
-                </div>
-                <div class="output-container">
-                    <ul id="string-list" class="string-list">
-                        <li class="empty-state">No strings generated yet.</li>
+            <!-- Page: String Generation -->
+            <div id="string-gen-page" class="page-pane">
+                <header class="page-header">
+                    <h2>String Generation</h2>
+                </header>
+                <section class="module string-generation-module">
+                    <div class="generation-controls input-group" style="align-items: center;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; font-weight: 500;">
+                            Max length: <input type="number" id="max-length" value="5" min="1" max="10" style="min-width: 80px; flex: none;">
+                        </label>
+                        <button id="generate-btn" class="primary-btn">Generate Strings</button>
+                    </div>
+                    <div id="string-gen-error" style="color: #fda4af; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.5rem 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; font-size: 0.95rem;"></div>
+                    <div class="output-container">
+                        <ul id="string-list" class="string-list">
+                            <li class="empty-state">No strings generated yet.</li>
+                        </ul>
+                    </div>
+                </section>
+                
+                <section class="module visualization-module" id="strgen-visualization-module" style="display: none; margin-top: 2.5rem;">
+                    <div class="module-header">
+                        <h2>String Simulation</h2>
+                        <div class="controls" style="display: flex; align-items: center; gap: 0.75rem;">
+                            <span style="font-size: 0.9rem; color: var(--text-muted); font-weight: 500;">Animation Speed:</span>
+                            <input type="range" id="speed-slider-strgen" min="100" max="2000" value="1000" title="Animation Speed" style="width: 100px;">
+                            <div style="width: 1px; height: 20px; background: var(--border); margin: 0 0.5rem;"></div>
+                            <button id="step-prev-btn-strgen" class="icon-btn" disabled>⏮</button>
+                            <button id="play-pause-btn-strgen" class="icon-btn primary-icon-btn">▶</button>
+                            <button id="step-next-btn-strgen" class="icon-btn" disabled>⏭</button>
+                        </div>
+                    </div>
+                    <div class="canvas-container">
+                        <canvas id="nfa-canvas-strgen" width="800" height="400"></canvas>
+                        <div id="step-description-strgen" class="step-info">Click a string to simulate.</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Equivalence -->
+            <div id="equivalence-page" class="page-pane">
+                <header class="page-header">
+                    <h2>Equivalence Checker</h2>
+                </header>
+                <section class="module equivalence-module">
+                    <p style="margin-bottom: 1.5rem; color: var(--text-muted);">Check if another Regular Expression generates the exact same language. Both DFAs will be visually rendered side-by-side.</p>
+                    <div class="input-group">
+                        <input type="text" id="regex-compare-input" placeholder="Enter another regex to compare">
+                        <button id="verify-equivalence-btn" class="primary-btn">Verify Equivalence</button>
+                    </div>
+                    <div id="equivalence-result" class="result-box"></div>
+                    <div class="dual-canvas-container" style="display: none; margin-top: 1.5rem;" id="dual-canvas-container">
+                        <div class="canvas-wrapper">
+                            <h3 style="text-align: center; font-size: 1.1rem; color: #f0fdfa; margin-bottom: 0.5rem;" id="eq-title-1">Regex 1</h3>
+                            <canvas id="nfa-canvas-eq1" width="400" height="300"></canvas>
+                        </div>
+                        <div class="canvas-wrapper">
+                            <h3 style="text-align: center; font-size: 1.1rem; color: #f0fdfa; margin-bottom: 0.5rem;" id="eq-title-2">Regex 2</h3>
+                            <canvas id="nfa-canvas-eq2" width="400" height="300"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Page: Know More -->
+            <div id="know-more-page" class="page-pane">
+                <header class="page-header">
+                    <h2>Know More: Regular Expressions</h2>
+                </header>
+                <section class="module know-more-module">
+                    <p style="margin-bottom: 1rem;">A <strong>Regular Expression (Regex)</strong> is a formal way to describe patterns in text. Think of it as a set of rules that defines a "language" of valid strings mathematically.</p>
+                    
+                    <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1.1rem; color: #f0fdfa;">Core Operations</h3>
+                    <ul style="padding-left: 1.5rem; color: var(--text-muted); line-height: 1.8; margin-bottom: 1.5rem;">
+                        <li><strong>Concatenation (ab)</strong>: Strings must follow one another sequentially. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">ab</code> matches exactly "ab".</li>
+                        <li><strong>Union (a|b)</strong>: Represents the logical "OR". E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a|b</code> matches either "a" or "b".</li>
+                        <li><strong>Kleene Star (*)</strong>: Specifies that the preceding element can occur zero or more times indefinitely. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a*</code> matches the empty string "ε", "a", "aa", etc.</li>
+                        <li><strong>Optional (?)</strong>: The preceding element can occur zero or one time. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a?</code> is computationally equivalent to <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">(a|ε)</code>.</li>
+                        <li><strong>Plus (+)</strong>: Occurs one or more times. Computable via <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">aa*</code>.</li>
                     </ul>
-                </div>
-            </section>
 
-            <!-- Module 4: Equivalence Checker -->
-            <section class="module equivalence-module">
-                <h2>Equivalence Verification</h2>
-                <p>Check if another Regular Expression generates the exact same language.</p>
-                <div class="input-group">
-                    <input type="text" id="regex-compare-input" placeholder="Enter another regex to compare">
-                    <button id="verify-equivalence-btn" class="primary-btn">Verify Equivalence</button>
-                </div>
-                <div id="equivalence-result" class="result-box"></div>
-            </section>
-
-            <!-- Module 5: Know More -->
-            <section class="module know-more-module">
-                <h2>Know More: Regular Expressions</h2>
-                <p style="margin-bottom: 1rem;">A <strong>Regular Expression (Regex/RegExp)</strong> is a sequence of characters that specifies a search pattern. They are extremely powerful for text processing, data validation, and parsing.</p>
-                <ul style="padding-left: 1.5rem; color: var(--text-muted); line-height: 1.8;">
-                    <li><strong>Tokens & Quantifiers:</strong> Characters like <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">\d</code> match numbers, while quantifiers like <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">+</code> or <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">*</code> indicate how many times the token should match.</li>
-                    <li><strong>DFA & NFA:</strong> Under the hood, patterns are compiled into Finite Automata. A Nondeterministic Finite Automaton (NFA) allows multiple paths for a single input, while a Deterministic Finite Automaton (DFA) has precisely one path, ensuring faster evaluation time.</li>
-                </ul>
-            </section>
+                    <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #f0fdfa;">Under the Hood</h3>
+                    <p style="color: var(--text-muted); line-height: 1.8;">Our compiler builds a <strong>Non-deterministic Finite Automaton (NFA)</strong> from your regex using Thompson's construction logic. The NFA allows multiple branching paths and "free" Epsilon jumps. It then transforms this complex web into an optimized <strong>Deterministic Finite Automaton (DFA)</strong> via Subset Construction—giving every character uniquely defined transitions.</p>
+                </section>
+            </div>
         </main>
     </div>
 

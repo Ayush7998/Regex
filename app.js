@@ -107,8 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     visualizeBtn.addEventListener('click', () => {
         const regexStr = regexInput.value.trim();
+        const errorMsg = document.getElementById('home-error');
+        errorMsg.style.display = 'none';
+
         if (!regexStr) {
-            alert("Please enter a regular expression.");
+            errorMsg.textContent = "Please input a regular expression.";
+            errorMsg.style.display = 'block';
             return;
         }
 
@@ -125,21 +129,26 @@ document.addEventListener('DOMContentLoaded', () => {
             renderStep(0); // Show first step
             togglePlayback(); // Auto-play
         } catch (e) {
-            alert("Error compiling regex: " + e.message);
+            errorMsg.textContent = e.message;
+            errorMsg.style.display = 'block';
             console.error(e);
         }
     });
 
     generateBtn.addEventListener('click', () => {
         const regexStr = regexInput.value.trim();
+        const errorMsg = document.getElementById('string-gen-error');
+        errorMsg.style.display = 'none';
+
         if (!regexStr) {
-            alert("Please enter a regular expression first.");
+            errorMsg.textContent = "Please input a regular expression.";
+            errorMsg.style.display = 'block';
             return;
         }
         
         try {
             const nfaData = regexEngine.compile(regexStr, true);
-            if (!nfaData) throw new Error("Invalid regular expression");
+            if (!nfaData) throw new Error("Invalid regular expression syntax.");
             
             const maxLength = parseInt(maxLengthInput.value);
             const strings = regexEngine.generateStrings(nfaData.startStateId, nfaData.endStateId, nfaData.states, maxLength);
@@ -159,15 +168,88 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         } catch (e) {
-            alert("Error generating strings: " + e.message);
+            errorMsg.textContent = e.message;
+            errorMsg.style.display = 'block';
+        }
+    });
+
+    const visualizerStrgen = new Visualizer('nfa-canvas-strgen');
+    let currentStepsStrgen = [];
+    let currentStepIndexStrgen = -1;
+    let playbackIntervalStrgen = null;
+
+    const playPauseBtnStrgen = document.getElementById('play-pause-btn-strgen');
+    const stepNextBtnStrgen = document.getElementById('step-next-btn-strgen');
+    const stepPrevBtnStrgen = document.getElementById('step-prev-btn-strgen');
+    const speedSliderStrgen = document.getElementById('speed-slider-strgen');
+    const stepDescriptionStrgen = document.getElementById('step-description-strgen');
+    const strgenVisualizationModule = document.getElementById('strgen-visualization-module');
+
+    function updateControlsStrgen() {
+        stepPrevBtnStrgen.disabled = currentStepIndexStrgen <= 0;
+        stepNextBtnStrgen.disabled = currentStepIndexStrgen >= currentStepsStrgen.length - 1;
+    }
+
+    function renderStepStrgen(index) {
+        if (index < 0 || index >= currentStepsStrgen.length) return;
+        currentStepIndexStrgen = index;
+        const step = currentStepsStrgen[index];
+        
+        visualizerStrgen.setStepData(step);
+        stepDescriptionStrgen.textContent = `Step ${index + 1}/${currentStepsStrgen.length}: ${step.description}`;
+        updateControlsStrgen();
+    }
+
+    function togglePlaybackStrgen() {
+        if (playbackIntervalStrgen) {
+            clearInterval(playbackIntervalStrgen);
+            playbackIntervalStrgen = null;
+            playPauseBtnStrgen.textContent = '▶';
+        } else {
+            if (currentStepIndexStrgen >= currentStepsStrgen.length - 1) {
+                currentStepIndexStrgen = -1;
+            }
+            playPauseBtnStrgen.textContent = '⏸';
+            playbackIntervalStrgen = setInterval(() => {
+                if (currentStepIndexStrgen < currentStepsStrgen.length - 1) {
+                    renderStepStrgen(currentStepIndexStrgen + 1);
+                } else {
+                    togglePlaybackStrgen();
+                }
+            }, 2100 - parseInt(speedSliderStrgen.value));
+        }
+    }
+
+    playPauseBtnStrgen.addEventListener('click', togglePlaybackStrgen);
+
+    stepNextBtnStrgen.addEventListener('click', () => {
+        if (playbackIntervalStrgen) togglePlaybackStrgen();
+        if (currentStepIndexStrgen < currentStepsStrgen.length - 1) renderStepStrgen(currentStepIndexStrgen + 1);
+    });
+
+    stepPrevBtnStrgen.addEventListener('click', () => {
+        if (playbackIntervalStrgen) togglePlaybackStrgen();
+        if (currentStepIndexStrgen > 0) renderStepStrgen(currentStepIndexStrgen - 1);
+    });
+
+    speedSliderStrgen.addEventListener('input', () => {
+        if (playbackIntervalStrgen) {
+            clearInterval(playbackIntervalStrgen);
+            playbackIntervalStrgen = setInterval(() => {
+                if (currentStepIndexStrgen < currentStepsStrgen.length - 1) {
+                    renderStepStrgen(currentStepIndexStrgen + 1);
+                } else {
+                    togglePlaybackStrgen();
+                }
+            }, 2100 - parseInt(speedSliderStrgen.value));
         }
     });
 
     function simulateStringOnDfa(str, regexStr) {
-        if (playbackInterval) togglePlayback();
+        if (playbackIntervalStrgen) togglePlaybackStrgen();
         
         try {
-            const nfaData = regexEngine.compile(regexStr, false); // Compile not silently
+            const nfaData = regexEngine.compile(regexStr, false); // must NOT be silent in order to record and read dfaSteps
             if (!nfaData || !nfaData.dfaSteps || nfaData.dfaSteps.length === 0) {
                 throw new Error("Could not retrieve DFA data for simulation.");
             }
@@ -217,11 +299,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
             
-            currentSteps = simSteps;
-            renderStep(0);
-            togglePlayback();
+            currentStepsStrgen = simSteps;
+            strgenVisualizationModule.style.display = 'block';
+            renderStepStrgen(0);
+            togglePlaybackStrgen();
             
-            document.querySelector('.visualization-module').scrollIntoView({ behavior: 'smooth' });
+            strgenVisualizationModule.scrollIntoView({ behavior: 'smooth' });
         } catch (e) {
             alert("Error simulating string: " + e.message);
             console.error(e);
@@ -232,12 +315,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const r1 = regexInput.value.trim();
         const r2 = regexCompareInput.value.trim();
         
+        equivalenceResult.className = 'result-box'; // reset
+
         if (!r1 || !r2) {
-            alert("Please provide both regular expressions to compare.");
+            equivalenceResult.textContent = "Please provide both regular expressions to compare.";
+            equivalenceResult.classList.add('error');
+            const dcc = document.getElementById('dual-canvas-container');
+            if (dcc) dcc.style.display = 'none';
             return;
         }
         
-        equivalenceResult.className = 'result-box'; // reset
         const isEquivalent = regexEngine.checkEquivalence(r1, r2);
         
         if (isEquivalent) {
@@ -247,5 +334,44 @@ document.addEventListener('DOMContentLoaded', () => {
             equivalenceResult.textContent = `The regular expressions "${r1}" and "${r2}" are NOT EQUIVALENT.`;
             equivalenceResult.classList.add('error');
         }
+
+        const dualCanvasContainer = document.getElementById('dual-canvas-container');
+        document.getElementById('eq-title-1').textContent = `Regex 1: ${r1}`;
+        document.getElementById('eq-title-2').textContent = `Regex 2: ${r2}`;
+
+        try {
+            const data1 = regexEngine.compile(r1, false); 
+            const data2 = regexEngine.compile(r2, false);
+            
+            if (data1 && data2 && data1.dfaSteps && data2.dfaSteps) {
+                const vis1 = new Visualizer('nfa-canvas-eq1');
+                const vis2 = new Visualizer('nfa-canvas-eq2');
+                
+                vis1.setStepData(data1.dfaSteps[data1.dfaSteps.length - 1]);
+                vis2.setStepData(data2.dfaSteps[data2.dfaSteps.length - 1]);
+                
+                dualCanvasContainer.style.display = 'flex';
+            } else {
+                dualCanvasContainer.style.display = 'none';
+            }
+        } catch (e) {
+            console.error("Could not visualize DFAs for equivalence", e);
+            dualCanvasContainer.style.display = 'none';
+        }
+    });
+
+    // Navigation Logic
+    const navBtns = document.querySelectorAll('.nav-btn');
+    const pagePanes = document.querySelectorAll('.page-pane');
+
+    navBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            navBtns.forEach(b => b.classList.remove('active'));
+            pagePanes.forEach(p => p.classList.remove('active'));
+
+            btn.classList.add('active');
+            const targetId = btn.getAttribute('data-target');
+            document.getElementById(targetId).classList.add('active');
+        });
     });
 });
