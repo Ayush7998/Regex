@@ -95,12 +95,12 @@ class RegexEngine {
         for (let i = 0; i < regex.length; i++) {
             const char = regex[i];
             res += char;
-            if (char === '(' || char === '|') {
+            if (char === '(' || char === '+') {
                 continue;
             }
             if (i < regex.length - 1) {
                 const nextChar = regex[i + 1];
-                if (nextChar === '*' || nextChar === '+' || nextChar === '?' || nextChar === '|' || nextChar === ')') {
+                if (nextChar === '*' || nextChar === '?' || nextChar === '+' || nextChar === ')') {
                     continue;
                 }
                 res += '.';
@@ -111,10 +111,9 @@ class RegexEngine {
 
     toPostfix(regex) {
         const precedence = {
-            '|': 1,
+            '+': 1,
             '.': 2,
             '*': 3,
-            '+': 3,
             '?': 3
         };
 
@@ -133,7 +132,7 @@ class RegexEngine {
                 }
                 stack.pop(); // Remove '('
             } else if (isOperator(char)) {
-                if (char === '*' || char === '+' || char === '?') {
+                if (char === '*' || char === '?') {
                     postfix += char;
                 } else {
                     while (stack.length > 0 && stack[stack.length - 1] !== '(' && precedence[stack[stack.length - 1]] >= precedence[char]) {
@@ -170,7 +169,7 @@ class RegexEngine {
                 stack.push(newFrag);
                 this.recordStep(`Concatenation: Linked end of previous to start of next.`, stack, silent);
             } 
-            else if (char === '|') { 
+            else if (char === '+') { 
                 const f2 = stack.pop();
                 const f1 = stack.pop();
                 
@@ -184,7 +183,7 @@ class RegexEngine {
                 
                 const newFrag = new NFAFragment(start.id, end.id);
                 stack.push(newFrag);
-                this.recordStep(`Union (|): Created branching path.`, stack, silent);
+                this.recordStep(`Union (+): Created branching path.`, stack, silent);
             } 
             else if (char === '*') { 
                 const f1 = stack.pop();
@@ -200,20 +199,6 @@ class RegexEngine {
                 const newFrag = new NFAFragment(start.id, end.id);
                 stack.push(newFrag);
                 this.recordStep(`Kleene Star (*): Added loop back and bypass for zero occurrences.`, stack, silent);
-            }
-            else if (char === '+') { 
-                const f1 = stack.pop();
-                
-                const start = this.newState();
-                const end = this.newState();
-                
-                start.addTransition('ε', f1.startStateId);
-                this.states.get(f1.endStateId).addTransition('ε', f1.startStateId); 
-                this.states.get(f1.endStateId).addTransition('ε', end.id); 
-                
-                const newFrag = new NFAFragment(start.id, end.id);
-                stack.push(newFrag);
-                this.recordStep(`Plus (+): Added loop back for repeat.`, stack, silent);
             }
             else if (char === '?') { 
                 const f1 = stack.pop();
@@ -257,16 +242,20 @@ class RegexEngine {
         };
     }
 
-    compile(regexStr, silent = false) {
+    compile(regexStr, silent = false, doMinimize = false) {
         if (!regexStr) return null;
         try {
             const withConcat = this.insertExplicitConcat(regexStr);
             const postfix = this.toPostfix(withConcat);
             const nfa = this.buildNFA(postfix, silent);
-            this.nfaToDfa(nfa.startStateId, nfa.endStateId, nfa.states, silent);
+            const dfa = this.nfaToDfa(nfa.startStateId, nfa.endStateId, nfa.states, silent);
+            if (doMinimize) {
+                this.minimizeDfa(dfa, silent);
+            }
             return {
                 ...nfa,
-                dfaSteps: this.dfaSteps
+                dfaSteps: this.dfaSteps,
+                lastDfa: dfa
             };
         } catch (e) {
             console.error(e);
@@ -368,8 +357,107 @@ class RegexEngine {
         };
     }
 
+    minimizeDfa(dfa, silent = false) {
+        let partitions = [];
+        const accept = [];
+        const nonAccept = [];
+        
+        for (const state of dfa.states) {
+            if (state.isEnd) accept.push(state.id);
+            else nonAccept.push(state.id);
+        }
+        if (accept.length > 0) partitions.push(accept);
+        if (nonAccept.length > 0) partitions.push(nonAccept);
+
+        let stateToPartition = {};
+        for (let i = 0; i < partitions.length; i++) {
+            for (const id of partitions[i]) stateToPartition[id] = i;
+        }
+
+        let changed = true;
+        while (changed) {
+            changed = false;
+            const newPartitions = [];
+
+            for (const p of partitions) {
+                const groups = {};
+                for (const stateId of p) {
+                    const state = dfa.states.find(s => s.id === stateId);
+                    let sig = "";
+                    for (const char of dfa.alphabet) {
+                        const targetId = state.transitions[char];
+                        const targetPart = targetId !== undefined ? stateToPartition[targetId] : -1;
+                        sig += `${targetPart},`;
+                    }
+                    if (!groups[sig]) groups[sig] = [];
+                    groups[sig].push(stateId);
+                }
+
+                const keys = Object.keys(groups);
+                if (keys.length > 1) changed = true;
+                
+                for (const key of keys) {
+                    newPartitions.push(groups[key]);
+                }
+            }
+            partitions = newPartitions;
+            for (let i = 0; i < partitions.length; i++) {
+                for (const id of partitions[i]) stateToPartition[id] = i;
+            }
+        }
+
+        const startIdx = partitions.findIndex(p => p.includes(dfa.startStateId));
+        if (startIdx > 0) {
+            const temp = partitions[0];
+            partitions[0] = partitions[startIdx];
+            partitions[startIdx] = temp;
+        }
+
+        stateToPartition = {};
+        for (let i = 0; i < partitions.length; i++) {
+            for (const id of partitions[i]) stateToPartition[id] = i;
+        }
+
+        const minDfaStates = [];
+        const startPart = stateToPartition[dfa.startStateId];
+        
+        for (let i = 0; i < partitions.length; i++) {
+            const p = partitions[i];
+            const repId = p[0];
+            const repState = dfa.states.find(s => s.id === repId);
+            
+            const newTransitions = {};
+            for (const char of dfa.alphabet) {
+                if (repState.transitions[char] !== undefined) {
+                    newTransitions[char] = stateToPartition[repState.transitions[char]];
+                }
+            }
+            
+            let combinedNfaIds = [];
+            for (const id of p) {
+                const s = dfa.states.find(st => st.id === id);
+                if (s.nfaIds) combinedNfaIds = combinedNfaIds.concat(s.nfaIds);
+            }
+            combinedNfaIds = Array.from(new Set(combinedNfaIds)).sort((a,b)=>a-b);
+
+            minDfaStates.push({
+                id: i,
+                nfaIds: combinedNfaIds,
+                transitions: newTransitions,
+                isEnd: repState.isEnd,
+            });
+        }
+
+        this.recordDfaStep(`Moore's Minimization Complete. Reduced to ${minDfaStates.length} states.`, minDfaStates, [], silent);
+
+        dfa.states = minDfaStates;
+        dfa.startStateId = startPart;
+        return dfa;
+    }
+
     generateStrings(startStateId, endStateId, statesMap, maxLength) {
         const dfa = this.nfaToDfa(startStateId, endStateId, statesMap, true);
+        this.minimizeDfa(dfa, true);
         const results = new Set();
         const queue = [{ dfaId: dfa.startStateId, str: "" }];
         
@@ -401,6 +489,9 @@ class RegexEngine {
             
             const dfa1 = this.nfaToDfa(n1.startStateId, n1.endStateId, n1.states, true);
             const dfa2 = this.nfaToDfa(n2.startStateId, n2.endStateId, n2.states, true);
+            
+            this.minimizeDfa(dfa1, true);
+            this.minimizeDfa(dfa2, true);
             
             const combinedAlphabet = new Set([...dfa1.alphabet, ...dfa2.alphabet]);
             

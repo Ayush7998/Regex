@@ -33,17 +33,22 @@
             <section class="module regex-input-module">
                 <h2>Regular Expression Input</h2>
                 <div class="input-group">
-                    <input type="text" id="regex-input" placeholder="Enter regular expression (e.g. (a|b)*abb)">
+                    <input type="text" id="regex-input" placeholder="Enter regular expression (e.g. (a+b)*abb)">
                     <button id="visualize-btn" class="primary-btn">Visualize Construction</button>
                 </div>
                 <div id="home-error" style="color: #fda4af; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.5rem 1rem; border-radius: 8px; margin-bottom: 1rem; display: none; font-size: 0.95rem;"></div>
                 <div class="palette">
                     <h3>Quick Palette</h3>
                     <div class="palette-buttons">
+                        <button class="palette-btn" data-val="a">a</button>
+                        <button class="palette-btn" data-val="b">b</button>
+                        <button class="palette-btn" data-val="c">c</button>
+                        <button class="palette-btn" data-val="d">d</button>
+                        <button class="palette-btn" data-val="1">1</button>
+                        <button class="palette-btn" data-val="0">0</button>
                         <button class="palette-btn" data-val="*">Kleene Star (*)</button>
-                        <button class="palette-btn" data-val="+">Plus (+)</button>
+                        <button class="palette-btn" data-val="+">Union (+)</button>
                         <button class="palette-btn" data-val="?">Optional (?)</button>
-                        <button class="palette-btn" data-val="|">Union (|)</button>
                         <button class="palette-btn" data-val="(">(</button>
                         <button class="palette-btn" data-val=")">)</button>
                         <button class="palette-btn" data-val="ε">Epsilon (ε)</button>
@@ -64,7 +69,8 @@
                         <button id="step-next-btn" class="icon-btn" disabled>⏭</button>
                     </div>
                 </div>
-                <div class="canvas-container">
+                <div class="canvas-container" style="position: relative;">
+                    <button id="minimize-btn" class="primary-btn" style="display: none; position: absolute; bottom: 1.5rem; right: 1.5rem; background-color: #f59e0b; border-color: #d97706; padding: 0.5rem 1rem; font-size: 0.85rem; z-index: 10;">Minimize DFA</button>
                     <canvas id="nfa-canvas" width="800" height="400"></canvas>
                     <div id="step-description" class="step-info">Enter a regex to start.</div>
                 </div>
@@ -103,7 +109,8 @@
                             <button id="step-next-btn-strgen" class="icon-btn" disabled>⏭</button>
                         </div>
                     </div>
-                    <div class="canvas-container">
+                    <div class="canvas-container" style="position: relative;">
+                        <button id="minimize-btn-strgen" class="primary-btn" style="display: none; position: absolute; bottom: 1.5rem; right: 1.5rem; background-color: #f59e0b; border-color: #d97706; padding: 0.5rem 1rem; font-size: 0.85rem; z-index: 10;">Minimize DFA</button>
                         <canvas id="nfa-canvas-strgen" width="800" height="400"></canvas>
                         <div id="step-description-strgen" class="step-info">Click a string to simulate.</div>
                     </div>
@@ -146,10 +153,9 @@
                     <h3 style="margin-top: 1.5rem; margin-bottom: 1rem; font-size: 1.1rem; color: #f0fdfa;">Core Operations</h3>
                     <ul style="padding-left: 1.5rem; color: var(--text-muted); line-height: 1.8; margin-bottom: 1.5rem;">
                         <li><strong>Concatenation (ab)</strong>: Strings must follow one another sequentially. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">ab</code> matches exactly "ab".</li>
-                        <li><strong>Union (a|b)</strong>: Represents the logical "OR". E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a|b</code> matches either "a" or "b".</li>
+                        <li><strong>Union (a+b)</strong>: Represents the logical "OR". E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a+b</code> matches either "a" or "b".</li>
                         <li><strong>Kleene Star (*)</strong>: Specifies that the preceding element can occur zero or more times indefinitely. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a*</code> matches the empty string "ε", "a", "aa", etc.</li>
-                        <li><strong>Optional (?)</strong>: The preceding element can occur zero or one time. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a?</code> is computationally equivalent to <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">(a|ε)</code>.</li>
-                        <li><strong>Plus (+)</strong>: Occurs one or more times. Computable via <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">aa*</code>.</li>
+                        <li><strong>Optional (?)</strong>: The preceding element can occur zero or one time. E.g., <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">a?</code> is computationally equivalent to <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: #fff;">(a+ε)</code>.</li>
                     </ul>
 
                     <h3 style="margin-bottom: 1rem; font-size: 1.1rem; color: #f0fdfa;">Under the Hood</h3>

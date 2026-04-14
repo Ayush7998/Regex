@@ -12,10 +12,10 @@ class Visualizer {
         this.isRunning = false;
         
         // Physics constants
-        this.repulsion = 4000;
-        this.springLength = 120;
-        this.springK = 0.15;
-        this.damping = 0.4; // Very high friction to settle instantly
+        this.repulsion = 20000; // Increased to push nodes further apart
+        this.springLength = 220; // Longer springs for more space
+        this.springK = 0.08; // Softer springs
+        this.damping = 0.5; // Slightly less friction for organic movement
         
         this.startLoop();
     }
@@ -146,14 +146,14 @@ class Visualizer {
         for (let i = 0; i < nodeIds.length; i++) {
             const n = this.nodes[nodeIds[i]];
             
-            // Centering Y strongly to form a linear horizontal pipeline
+            // Relaxed Y centering to let graph spread vertically while staying around middle
             const dyCenter = (this.height / 2) - n.y;
-            n.vy += dyCenter * 0.1; // Strong pull to center line
+            n.vy += dyCenter * 0.015;
 
-            // Strong pull X toward a linear progression based on ID
-            const targetX = 100 + ((n.id - minId) / idRange) * (this.width - 200);
+            // X force spaced wider to use full canvas width
+            const targetX = 80 + ((n.id - minId) / idRange) * (this.width - 160);
             const dxCenter = targetX - n.x;
-            n.vx += dxCenter * 0.05;
+            n.vx += dxCenter * 0.02; // Reduced stiffness
 
             // Velocity integration
             n.vx *= this.damping;
@@ -167,48 +167,87 @@ class Visualizer {
         }
     }
 
-    drawArrow(fromx, fromy, tox, toy, radius) {
+    drawArrow(fromx, fromy, tox, toy, radius, curveOffset = 0) {
         const headlen = 10;
         const dx = tox - fromx;
         const dy = toy - fromy;
+        const dist = Math.sqrt(dx*dx + dy*dy) || 1;
         const angle = Math.atan2(dy, dx);
         
-        const startX = fromx + radius * Math.cos(angle);
-        const startY = fromy + radius * Math.sin(angle);
-        const endX = tox - radius * Math.cos(angle);
-        const endY = toy - radius * Math.sin(angle);
+        let startX, startY, endX, endY;
+        let midX, midY;
+        let tangentAngle;
 
-        this.ctx.beginPath();
-        this.ctx.moveTo(startX, startY);
-        this.ctx.lineTo(endX, endY);
-        this.ctx.stroke();
+        if (curveOffset === 0) {
+            startX = fromx + radius * Math.cos(angle);
+            startY = fromy + radius * Math.sin(angle);
+            endX = tox - radius * Math.cos(angle);
+            endY = toy - radius * Math.sin(angle);
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(startX, startY);
+            this.ctx.lineTo(endX, endY);
+            this.ctx.stroke();
+
+            tangentAngle = angle;
+            midX = fromx + dx/2;
+            midY = fromy + dy/2;
+        } else {
+            const cx = fromx + dx/2 - dy * curveOffset / dist;
+            const cy = fromy + dy/2 + dx * curveOffset / dist;
+
+            const angle1 = Math.atan2(cy - fromy, cx - fromx);
+            startX = fromx + radius * Math.cos(angle1);
+            startY = fromy + radius * Math.sin(angle1);
+            
+            const angle2 = Math.atan2(toy - cy, tox - cx);
+            endX = tox - radius * Math.cos(angle2);
+            endY = toy - radius * Math.sin(angle2);
+
+            this.ctx.beginPath();
+            this.ctx.moveTo(startX, startY);
+            this.ctx.quadraticCurveTo(cx, cy, endX, endY);
+            this.ctx.stroke();
+
+            tangentAngle = angle2;
+            
+            midX = 0.25 * startX + 0.5 * cx + 0.25 * endX;
+            midY = 0.25 * startY + 0.5 * cy + 0.25 * endY;
+        }
 
         this.ctx.beginPath();
         this.ctx.moveTo(endX, endY);
-        this.ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
-        this.ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+        this.ctx.lineTo(endX - headlen * Math.cos(tangentAngle - Math.PI / 6), endY - headlen * Math.sin(tangentAngle - Math.PI / 6));
+        this.ctx.lineTo(endX - headlen * Math.cos(tangentAngle + Math.PI / 6), endY - headlen * Math.sin(tangentAngle + Math.PI / 6));
         this.ctx.fill();
 
-        return { startX, startY, endX, endY, dx: endX - startX, dy: endY - startY };
+        return { midX, midY, angle: tangentAngle };
     }
 
-    drawSelfArrow(x, y, radius) {
+    drawSelfArrow(x, y, radius, angle = -Math.PI/2) {
+        const loopDist = radius * 1.5;
+        const centerX = x + Math.cos(angle) * loopDist;
+        const centerY = y + Math.sin(angle) * loopDist;
+        
         this.ctx.beginPath();
-        this.ctx.arc(x, y - radius * 1.5, radius, 0, 2 * Math.PI);
+        this.ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
         this.ctx.stroke();
         
-        const endX = x + radius * 0.5;
-        const endY = y - radius;
+        const contactAngle = angle + Math.PI / 5;
+        const endX = x + radius * Math.cos(contactAngle);
+        const endY = y + radius * Math.sin(contactAngle);
+        
         const headlen = 10;
-        const angle = 0;
+        const loopAngle = Math.atan2(endY - centerY, endX - centerX);
+        const arrowAngle = loopAngle + Math.PI / 2;
         
         this.ctx.beginPath();
         this.ctx.moveTo(endX, endY);
-        this.ctx.lineTo(endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6));
-        this.ctx.lineTo(endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6));
+        this.ctx.lineTo(endX - headlen * Math.cos(arrowAngle - Math.PI / 6), endY - headlen * Math.sin(arrowAngle - Math.PI / 6));
+        this.ctx.lineTo(endX - headlen * Math.cos(arrowAngle + Math.PI / 6), endY - headlen * Math.sin(arrowAngle + Math.PI / 6));
         this.ctx.fill();
         
-        return { textX: x, textY: y - radius * 3 };
+        return { textX: x + Math.cos(angle) * radius * 2.8, textY: y + Math.sin(angle) * radius * 2.8 };
     }
 
     draw() {
@@ -237,6 +276,8 @@ class Visualizer {
                 directions[dirKey].push(e.label);
             });
 
+            const hasBidirectional = Object.keys(directions).length > 1;
+
             for (let dirKey in directions) {
                 const labels = Array.from(new Set(directions[dirKey])).join(',');
                 const [sourceStr, targetStr] = dirKey.split('->');
@@ -252,21 +293,37 @@ class Visualizer {
                 this.ctx.lineWidth = isEdgeActive ? 3 : 2;
 
                 if (src.id === tgt.id) {
-                    const pos = this.drawSelfArrow(src.x, src.y, nodeRadius);
+                    let dx = 0, dy = 0;
+                    this.edges.forEach(e => {
+                        if (e.source === src.id && e.target !== src.id) {
+                            dx += this.nodes[e.target].x - src.x;
+                            dy += this.nodes[e.target].y - src.y;
+                        } else if (e.target === src.id && e.source !== src.id) {
+                            dx += this.nodes[e.source].x - src.x;
+                            dy += this.nodes[e.source].y - src.y;
+                        }
+                    });
+                    
+                    let angle = -Math.PI / 2;
+                    if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
+                        angle = Math.atan2(dy, dx) + Math.PI;
+                    } else {
+                        angle = src.y > this.height / 2 ? Math.PI / 2 : -Math.PI / 2;
+                    }
+
+                    const pos = this.drawSelfArrow(src.x, src.y, nodeRadius, angle);
                     this.ctx.fillStyle = isEdgeActive ? '#ccfbf1' : '#a1a1aa';
                     this.ctx.fillText(labels, pos.textX, pos.textY);
                 } else {
-                    const pos = this.drawArrow(src.x, src.y, tgt.x, tgt.y, nodeRadius);
-                    
-                    const midX = src.x + (tgt.x - src.x) / 2;
-                    const midY = src.y + (tgt.y - src.y) / 2;
+                    const curveOffset = hasBidirectional ? -30 : 0;
+                    const pos = this.drawArrow(src.x, src.y, tgt.x, tgt.y, nodeRadius, curveOffset);
                     
                     const angle = Math.atan2(tgt.y - src.y, tgt.x - src.x);
                     const offsetX = Math.cos(angle - Math.PI/2) * 15;
                     const offsetY = Math.sin(angle - Math.PI/2) * 15;
                     
                     this.ctx.fillStyle = isEdgeActive ? '#ccfbf1' : '#a1a1aa';
-                    this.ctx.fillText(labels, midX + offsetX, midY + offsetY);
+                    this.ctx.fillText(labels, pos.midX + offsetX, pos.midY + offsetY);
                 }
             }
         });

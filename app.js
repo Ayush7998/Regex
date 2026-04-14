@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const regexInput = document.getElementById('regex-input');
     const paletteBtns = document.querySelectorAll('.palette-btn');
     const visualizeBtn = document.getElementById('visualize-btn');
+    const minimizeBtn = document.getElementById('minimize-btn');
     const generateBtn = document.getElementById('generate-btn');
     
     // Palette Interaction
@@ -32,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentSteps = [];
     let currentStepIndex = -1;
     let playbackInterval = null;
+    let currentUnminimizedDfa = null;
 
     const playPauseBtn = document.getElementById('play-pause-btn');
     const stepNextBtn = document.getElementById('step-next-btn');
@@ -119,19 +121,43 @@ document.addEventListener('DOMContentLoaded', () => {
         if (playbackInterval) togglePlayback();
 
         try {
-            const nfaData = regexEngine.compile(regexStr);
+            const nfaData = regexEngine.compile(regexStr, false, false);
             if (!nfaData || !nfaData.dfaSteps || nfaData.dfaSteps.length === 0) {
                 throw new Error("Compilation failed or produced no steps.");
             }
             
             console.log("Compiled DFA Data:", nfaData);
+            currentUnminimizedDfa = nfaData.lastDfa;
             currentSteps = nfaData.dfaSteps;
+            minimizeBtn.style.display = 'inline-block';
+            
             renderStep(0); // Show first step
             togglePlayback(); // Auto-play
         } catch (e) {
             errorMsg.textContent = e.message;
             errorMsg.style.display = 'block';
             console.error(e);
+        }
+    });
+
+    minimizeBtn.addEventListener('click', () => {
+        if (!currentUnminimizedDfa) return;
+        
+        if (playbackInterval) togglePlayback();
+        
+        if (currentStepIndex < currentSteps.length - 1) {
+            renderStep(currentSteps.length - 1);
+        }
+        
+        try {
+            regexEngine.minimizeDfa(currentUnminimizedDfa, false);
+            currentSteps = regexEngine.dfaSteps;
+            minimizeBtn.style.display = 'none';
+            currentUnminimizedDfa = null;
+            
+            renderStep(currentSteps.length - 1);
+        } catch (e) {
+            console.error("Minimization failed", e);
         }
     });
 
@@ -245,11 +271,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function simulateStringOnDfa(str, regexStr) {
+    let currentSimStr = null;
+    let currentSimRegex = null;
+
+    function simulateStringOnDfa(str, regexStr, doMinimize = false) {
         if (playbackIntervalStrgen) togglePlaybackStrgen();
         
+        currentSimStr = str;
+        currentSimRegex = regexStr;
+        
+        const minimizeBtnStrgen = document.getElementById('minimize-btn-strgen');
+        if (minimizeBtnStrgen) {
+            minimizeBtnStrgen.style.display = doMinimize ? 'none' : 'inline-block';
+        }
+
         try {
-            const nfaData = regexEngine.compile(regexStr, false); // must NOT be silent in order to record and read dfaSteps
+            const nfaData = regexEngine.compile(regexStr, false, doMinimize); 
             if (!nfaData || !nfaData.dfaSteps || nfaData.dfaSteps.length === 0) {
                 throw new Error("Could not retrieve DFA data for simulation.");
             }
@@ -258,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const simSteps = [];
             
             const actualStr = (str === "ε (Empty String)") ? "" : str;
-            let currentStateId = 0; // The DFA built from our compiler guarantees start state is 0
+            let currentStateId = 0; 
             
             simSteps.push({
                 description: `Start simulating string "${actualStr}". Initial state ${currentStateId}.`,
@@ -311,6 +348,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    const minimizeBtnStrgen = document.getElementById('minimize-btn-strgen');
+    if (minimizeBtnStrgen) {
+        minimizeBtnStrgen.addEventListener('click', () => {
+            if (currentSimStr !== null && currentSimRegex) {
+                simulateStringOnDfa(currentSimStr, currentSimRegex, true);
+            }
+        });
+    }
+
     verifyEquivalenceBtn.addEventListener('click', () => {
         const r1 = regexInput.value.trim();
         const r2 = regexCompareInput.value.trim();
@@ -340,8 +386,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('eq-title-2').textContent = `Regex 2: ${r2}`;
 
         try {
-            const data1 = regexEngine.compile(r1, false); 
-            const data2 = regexEngine.compile(r2, false);
+            const data1 = regexEngine.compile(r1, false, true); 
+            const data2 = regexEngine.compile(r2, false, true);
             
             if (data1 && data2 && data1.dfaSteps && data2.dfaSteps) {
                 const vis1 = new Visualizer('nfa-canvas-eq1');
